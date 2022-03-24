@@ -61,6 +61,16 @@ def message_hand(message):
         group_choice(message.chat.id, message.text)
 
 
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    if '_' in call.data:
+        if call.data.split('_')[0] == 'group':
+            edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
+        else:
+            edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1], call.message.id)
+
+
+
 def group_choice(user_id, text):
     if text == 'Да':
         bot.send_message(user_id, 'Пришлите название группы!')
@@ -85,11 +95,10 @@ def add_group(user_id, text):
 
 
 def send_schedule(date, user_id):
-    user_groups = sql.get_groups(
-        user_id).split(' ')  # наверное надо пофиксить, чтобы как-то синхронизировать с прошлым условием
+    user_groups = sql.get_groups(user_id).split(' ')
     markup = types.InlineKeyboardMarkup()
-    markup.row(types.InlineKeyboardButton('<-', callback_data=str(date + timedelta(days=1))),
-               types.InlineKeyboardButton('->', callback_data=str(date - timedelta(days=1))))
+    markup.row(types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_groups[0]),
+               types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_groups[0]))
     for u_group in user_groups:
         markup.row(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
     schedule = get_schedule(user_groups[0], date)
@@ -97,8 +106,24 @@ def send_schedule(date, user_id):
     sql.set_state(user_id, 'schedule')
 
 
+def edit_schedule(date, user_id, user_group, message_id):
+    user_groups = sql.get_groups(user_id).split(' ')
+    markup = types.InlineKeyboardMarkup()
+    if date.date() == datetime.today().date():
+        markup.row(types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
+                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group))
+    else:
+        markup.row(types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
+                   types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today())+'_'+user_group),
+                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group))
+    for u_group in user_groups:
+        markup.row(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+    schedule = get_schedule(user_group, date)
+    bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup)
+
+
 def get_schedule(group, date):
-    schedule = str(date.date()) + '\n---------------------------\n'
+    schedule = str(date.date()) + '\n' + group + '\n---------------------------\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
     lessons = json.loads(file)
@@ -117,7 +142,7 @@ def get_schedule(group, date):
                 delta = timedelta(weeks=2)
                 while start_date != end_date:
                     start_date = start_date + delta
-                    if start_date == date:
+                    if start_date == date.date():
                         lessons_list.append(lesson)
                         break
     if not lessons_list:
