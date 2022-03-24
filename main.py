@@ -102,7 +102,7 @@ def send_schedule(date, user_id):
     for u_group in user_groups:
         markup.row(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
     schedule = get_schedule(user_groups[0], date)
-    bot.send_message(user_id, schedule, reply_markup=markup)
+    bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
     sql.set_state(user_id, 'schedule')
 
 
@@ -119,11 +119,11 @@ def edit_schedule(date, user_id, user_group, message_id):
     for u_group in user_groups:
         markup.row(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
     schedule = get_schedule(user_group, date)
-    bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup)
+    bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
 
 
 def get_schedule(group, date):
-    schedule = str(date.date()) + '\n' + group + '\n---------------------------\n'
+    schedule = str(date.date()) + '\n' + group + '\n<b>-------------------------------------------</b>\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
     lessons = json.loads(file)
@@ -151,9 +151,10 @@ def get_schedule(group, date):
     for s in lessons_list:
         if s['subgroup'] == 'Common':
             s['subgroup'] = 'Вся группа'
-        schedule += s['title'] + '\n' + s['lecturer'] + '\n' + s['classroom'] + '\n' + s['type'] + '\n' + s[
-            'subgroup'] + '\n' + s['time']['start'] + ' - ' + s['time']['end'] + '\n'
-        schedule += '---------------------------\n'
+        schedule += '<u>' + s['title'] + '</u>\n<i>' + s['lecturer'] + '</i>\n' + s['classroom'] + '\n<b>' \
+                    + s['type'] + '</b>\n' + s['subgroup'] + '\n' \
+                    + s['time']['start'] + ' - ' + s['time']['end'] + '\n'
+        schedule += '<b>--------------------------------------------</b>\n'
     return schedule
 
 
