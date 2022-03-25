@@ -70,7 +70,6 @@ def callback_query(call):
             edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1], call.message.id)
 
 
-
 def group_choice(user_id, text):
     if text == 'Да':
         bot.send_message(user_id, 'Пришлите название группы!')
@@ -96,11 +95,13 @@ def add_group(user_id, text):
 
 def send_schedule(date, user_id):
     user_groups = sql.get_groups(user_id).split(' ')
-    markup = types.InlineKeyboardMarkup()
-    markup.row(types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_groups[0]),
-               types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_groups[0]))
+    button_list = [[],[]]
+    button_list[0].extend([types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_groups[0]),
+               types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_groups[0])])
     for u_group in user_groups:
-        markup.row(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+        if u_group != user_groups[0]:
+            button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+    markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = get_schedule(user_groups[0], date)
     bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
     sql.set_state(user_id, 'schedule')
@@ -108,16 +109,19 @@ def send_schedule(date, user_id):
 
 def edit_schedule(date, user_id, user_group, message_id):
     user_groups = sql.get_groups(user_id).split(' ')
-    markup = types.InlineKeyboardMarkup()
+    button_list = [[],[]]
     if date.date() == datetime.today().date():
-        markup.row(types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
-                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group))
+        button_list[0].extend([types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
+                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group)])
     else:
-        markup.row(types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
+        button_list[0].extend([types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
                    types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today())+'_'+user_group),
-                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group))
+                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group)])
+
     for u_group in user_groups:
-        markup.row(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+        if u_group != user_group:
+            button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+    markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = get_schedule(user_group, date)
     bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
 
