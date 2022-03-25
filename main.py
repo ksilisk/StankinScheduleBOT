@@ -49,7 +49,10 @@ def start(message):  # отправить сообщение со списком
         sql.del_user(message.chat.id)
     sql.add_user(message.chat.id)
     bot.send_message(message.chat.id, 'Отправьте название своей группы!\n(Например - "ИДБ-21-09")\nСписок групп можно '
-                                      'посмотреть тут:\nссылка')
+                                      'посмотреть <a href="https://drive.google.com/file/d'
+                                      '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
+                     parse_mode='HTML',
+                     disable_web_page_preview=True)
 
 
 @bot.message_handler(content_types=['text'])
@@ -76,6 +79,8 @@ def group_choice(user_id, text):
         sql.set_state(user_id, '/start')
     elif text == 'Нет':
         send_schedule(datetime.today(), user_id)
+    else:
+        bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
 
 
 def add_group(user_id, text):
