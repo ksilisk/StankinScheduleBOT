@@ -95,9 +95,10 @@ def add_group(user_id, text):
 
 def send_schedule(date, user_id):
     user_groups = sql.get_groups(user_id).split(' ')
-    button_list = [[],[]]
-    button_list[0].extend([types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_groups[0]),
-               types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_groups[0])])
+    button_list = [[], []]
+    button_list[0].extend(
+        [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_groups[0]),
+         types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_groups[0])])
     for u_group in user_groups:
         if u_group != user_groups[0]:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
@@ -109,14 +110,16 @@ def send_schedule(date, user_id):
 
 def edit_schedule(date, user_id, user_group, message_id):
     user_groups = sql.get_groups(user_id).split(' ')
-    button_list = [[],[]]
+    button_list = [[], []]
     if date.date() == datetime.today().date():
-        button_list[0].extend([types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
-                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group)])
+        button_list[0].extend(
+            [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_group),
+             types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_group)])
     else:
-        button_list[0].extend([types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1))+'_'+user_group),
-                   types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today())+'_'+user_group),
-                   types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1))+'_'+user_group)])
+        button_list[0].extend(
+            [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_group),
+             types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today()) + '_' + user_group),
+             types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_group)])
 
     for u_group in user_groups:
         if u_group != user_group:
@@ -127,7 +130,8 @@ def edit_schedule(date, user_id, user_group, message_id):
 
 
 def get_schedule(group, date):
-    schedule = str(date.date()) + '\n' + group + '\n<b>-------------------------------------------</b>\n'
+    weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
+    schedule = group + '\n<b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) + '\n<b>-------------------------------------------</b>\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
     lessons = json.loads(file)
