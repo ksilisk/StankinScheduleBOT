@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
+import asyncio
+
+from telebot.async_telebot import AsyncTeleBot
 from datetime import datetime, timedelta
 from telebot import types
+import telebot.async_telebot
 import dateparser as p
 import SQLLib as sql
+
 import json
 import telebot
 import sqlite3
 
-token = "973541236:AAFLvoGUV1btTIYuoJ8i4NxXv2K4gGrQiBY"
-bot = telebot.TeleBot(token)
+API_TOKEN = "973541236:AAFLvoGUV1btTIYuoJ8i4NxXv2K4gGrQiBY"
+bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
           'АДБ-18-11', 'АДБ-19-01', 'АДБ-19-02', 'АДБ-19-03', 'АДБ-19-06', 'АДБ-19-07', 'АДБ-19-08', 'АДБ-19-09',
@@ -44,11 +49,11 @@ GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АД�
 
 
 @bot.message_handler(commands=['start'])
-def start(message):  # отправить сообщение со списком всех груп
+async def start(message):  # отправить сообщение со списком всех груп
     if sql.check_user(message.chat.id):
         sql.del_user(message.chat.id)
     sql.add_user(message.chat.id)
-    bot.send_message(message.chat.id, 'Отправьте название своей группы!\n(Например - "ИДБ-21-09")\nСписок групп можно '
+    await bot.send_message(message.chat.id, 'Отправьте название своей группы!\n(Например - "ИДБ-21-09")\nСписок групп можно '
                                       'посмотреть <a href="https://drive.google.com/file/d'
                                       '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
                      parse_mode='HTML',
@@ -56,49 +61,49 @@ def start(message):  # отправить сообщение со списком
 
 
 @bot.message_handler(content_types=['text'])
-def message_hand(message):
+async def message_hand(message):
     state = sql.get_state(message.chat.id)
     if state == '/start':
-        add_group(message.chat.id, message.text)
+        await add_group(message.chat.id, message.text)
     elif state == 'group_choice':
-        group_choice(message.chat.id, message.text)
+        await group_choice(message.chat.id, message.text)
 
 
 @bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
+async def callback_query(call):
     if '_' in call.data:
         if call.data.split('_')[0] == 'group':
-            edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
+            await edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
         else:
-            edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1], call.message.id)
+            await edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1], call.message.id)
 
 
-def group_choice(user_id, text):
+async def group_choice(user_id, text):
     if text == 'Да':
-        bot.send_message(user_id, 'Пришлите название группы!')
+        await bot.send_message(user_id, 'Пришлите название группы!')
         sql.set_state(user_id, '/start')
     elif text == 'Нет':
-        send_schedule(datetime.today(), user_id)
+        await send_schedule(datetime.today(), user_id)
     else:
-        bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
+        await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
 
 
-def add_group(user_id, text):
+async def add_group(user_id, text):
     if text in GROUPS:
         sql.add_group(user_id, text)
         markup = types.ReplyKeyboardMarkup(True, True).row(types.KeyboardButton('Да'),
                                                            types.KeyboardButton('Нет'))
         if sql.get_groups_count(user_id) < 3:
-            bot.send_message(user_id, 'Отлично!\nХотите добавить еще одну группу? (не больше 3-х)', reply_markup=markup)
+            await bot.send_message(user_id, 'Отлично!\nХотите добавить еще одну группу? (не больше 3-х)', reply_markup=markup)
             sql.set_state(user_id, 'group_choice')
         else:
-            send_schedule(datetime.today(), user_id)
+            await send_schedule(datetime.today(), user_id)
     else:
-        bot.send_message(user_id,
+        await bot.send_message(user_id,
                          'Такой группы в базе нет!\nПроверьте правильность сообщения и попробуйте снова!')
 
 
-def send_schedule(date, user_id):
+async def send_schedule(date, user_id):
     user_groups = sql.get_groups(user_id).split(' ')
     button_list = [[], []]
     button_list[0].extend(
@@ -108,12 +113,12 @@ def send_schedule(date, user_id):
         if u_group != user_groups[0]:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
-    schedule = get_schedule(user_groups[0], date)
-    bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
+    schedule = await get_schedule(user_groups[0], date)
+    await bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
     sql.set_state(user_id, 'schedule')
 
 
-def edit_schedule(date, user_id, user_group, message_id):
+async def edit_schedule(date, user_id, user_group, message_id):
     user_groups = sql.get_groups(user_id).split(' ')
     button_list = [[], []]
     if date.date() == datetime.today().date():
@@ -130,11 +135,11 @@ def edit_schedule(date, user_id, user_group, message_id):
         if u_group != user_group:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
-    schedule = get_schedule(user_group, date)
-    bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
+    schedule = await get_schedule(user_group, date)
+    await bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
 
 
-def get_schedule(group, date):
+async def get_schedule(group, date):
     weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
     schedule = group + '\n<b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) + '\n<b>-------------------------------------------</b>\n'
     lessons_list = []
@@ -171,4 +176,9 @@ def get_schedule(group, date):
     return schedule
 
 
-bot.infinity_polling()
+async def main():
+    await asyncio.gather(bot.infinity_polling())
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
