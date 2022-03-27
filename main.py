@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-import asyncio
-
 from telebot.async_telebot import AsyncTeleBot
 from datetime import datetime, timedelta
 from telebot import types
-import telebot.async_telebot
+import aioschedule
 import dateparser as p
 import SQLLib as sql
-
+import asyncio
 import json
-import telebot
-import sqlite3
+
 
 API_TOKEN = "973541236:AAFLvoGUV1btTIYuoJ8i4NxXv2K4gGrQiBY"
 bot = AsyncTeleBot(API_TOKEN)
@@ -67,6 +64,11 @@ async def message_hand(message):
         await add_group(message.chat.id, message.text)
     elif state == 'group_choice':
         await group_choice(message.chat.id, message.text)
+    elif state == 'time_send':
+        await time_send(message.chat.id, message.text)
+    elif state == 'add_time':
+        await add_time(message.chat.id, message.text)
+
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -75,15 +77,40 @@ async def callback_query(call):
         if call.data.split('_')[0] == 'group':
             await edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
         else:
-            await edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1], call.message.id)
+            await edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1],
+                                call.message.id)
 
+
+async def add_time(user_id, time_to_send):
+    if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
+        await bot.send_message(user_id, 'ok') # сделать добавление события через aioschedule для пользователя
+        await send_schedule(datetime.today(),user_id) # и отправить расписание
+    else:
+        await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
+
+
+async def time_send(user_id, text):
+    if text == 'Да':
+        await bot.send_message(user_id, 'Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+        sql.set_state(user_id, 'add_time')
+    elif text == 'Нет':
+        await send_schedule(datetime.today(), user_id)
+    else:
+        await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!',
+                               reply_markup=types.ReplyKeyboardMarkup(True,True).row(
+                                   types.KeyboardButton('Да'),
+                                   types.KeyboardButton('Нет')))
 
 async def group_choice(user_id, text):
     if text == 'Да':
         await bot.send_message(user_id, 'Пришлите название группы!')
         sql.set_state(user_id, '/start')
     elif text == 'Нет':
-        await send_schedule(datetime.today(), user_id)
+        await bot.send_message(user_id, 'Хотите ли Вы получать расписание ежедневно в какое-то время?',
+                               reply_markup=types.ReplyKeyboardMarkup(True, True).row(
+                                   types.KeyboardButton('Да'),
+                                   types.KeyboardButton('Нет')))
+        sql.set_state(user_id, 'time_send')
     else:
         await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
 
@@ -94,10 +121,13 @@ async def add_group(user_id, text):
         markup = types.ReplyKeyboardMarkup(True, True).row(types.KeyboardButton('Да'),
                                                            types.KeyboardButton('Нет'))
         if sql.get_groups_count(user_id) < 3:
-            await bot.send_message(user_id, 'Отлично!\nХотите добавить еще одну группу? (не больше 3-х)', reply_markup=markup)
+            await bot.send_message(user_id, 'Отлично!\nХотите добавить еще одну группу? (не больше 3-х)',
+                                   reply_markup=markup)
             sql.set_state(user_id, 'group_choice')
         else:
-            await send_schedule(datetime.today(), user_id)
+            await bot.send_message(user_id, 'Хотите ли Вы получать расписание ежедневно в какое-то время?',
+                                   reply_markup=markup)
+            sql.set_state(user_id, 'time_send')
     else:
         await bot.send_message(user_id,
                          'Такой группы в базе нет!\nПроверьте правильность сообщения и попробуйте снова!')
@@ -141,7 +171,8 @@ async def edit_schedule(date, user_id, user_group, message_id):
 
 async def get_schedule(group, date):
     weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
-    schedule = group + '\n<b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) + '\n<b>-------------------------------------------</b>\n'
+    schedule = group + '\n<b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) \
+               + '\n<b>-------------------------------------------</b>\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
     lessons = json.loads(file)
