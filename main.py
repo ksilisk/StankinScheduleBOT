@@ -83,11 +83,14 @@ async def callback_query(call):
 
 async def add_time(user_id, time_to_send):
     if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
-        await bot.send_message(user_id, 'ok') # сделать добавление события через aioschedule для пользователя
-        await send_schedule(datetime.today(),user_id) # и отправить расписание
+        aioschedule.every().days.at(time_to_send).do().tag(user_id)  # добавление времени отправки
+        await send_schedule(datetime.today(),user_id)
     else:
         await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
 
+
+def resend_schedule(user_id):
+    pass # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
 
 async def time_send(user_id, text):
     if text == 'Да':
@@ -207,8 +210,13 @@ async def get_schedule(group, date):
     return schedule
 
 
+async def run_schedules():
+    while True:
+        await aioschedule.run_pending()
+        await asyncio.sleep(1)
+
 async def main():
-    await asyncio.gather(bot.infinity_polling())
+    await asyncio.gather(bot.infinity_polling(), run_schedules())
 
 
 if __name__ == '__main__':
