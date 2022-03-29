@@ -74,4 +74,4 @@ def get_groups_count(user_id):
 
 
 def get_users_with_time():
-    pass
+    return cur.execute("SELECT id, time_send FROM users WHERE time_send IS NOT NULL").fetchall()

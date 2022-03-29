@@ -84,6 +84,7 @@ async def callback_query(call):
 async def add_time(user_id, time_to_send):
     if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
         sql.add_time_send(user_id, time_to_send)
+        aioschedule.clear(user_id)
         aioschedule.every().days.at(time_to_send).do(resend_schedule, user_id).tag(user_id)  # добавление времени отправки
         await send_schedule(datetime.today(),user_id)
     else:
@@ -92,7 +93,6 @@ async def add_time(user_id, time_to_send):
 
 async def resend_schedule(user_id):
     delete_state = await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
-    await bot.send_message(user_id, 'збс брат, красава')
     await send_schedule(datetime.today(), user_id)
 
 async def time_send(user_id, text):
@@ -215,6 +215,9 @@ async def get_schedule(group, date):
 
 
 async def run_schedules():
+    users = sql.get_users_with_time()
+    for i in range(len(users)):
+        aioschedule.every().days.at(users[i][1]).do(resend_schedule, users[i][0]).tag(users[i][0])
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)
