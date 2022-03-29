@@ -23,6 +23,24 @@ def add_user(user_id):
     con.commit()
 
 
+def add_time_send(user_id, time):
+    cur.execute("UPDATE users SET time_send = ? WHERE id = ?", (time, user_id))
+    con.commit()
+
+
+def get_time_send(user_id):
+    return cur.execute("SELECT time_send FROM users WHERE id = ?", (user_id,)).fetchone()[0]
+
+
+def add_schedule_id(user_id, mes_id):
+    cur.execute("UPDATE users SET schedule_id = ? WHERE id = ?", (mes_id, user_id))
+    con.commit()
+
+
+def get_schedule_id(user_id):
+    return cur.execute("SELECT schedule_id FROM users WHERE id = ?", (user_id,)).fetchone()[0]
+
+
 def set_state(user_id, state):
     cur.execute("UPDATE users SET state = ? WHERE id = ?", (state, user_id))
     con.commit()
@@ -53,3 +71,7 @@ def check_user(user_id):
 
 def get_groups_count(user_id):
     return cur.execute("SELECT groups_count FROM users WHERE id = ?", (user_id,)).fetchone()[0]
+
+
+def get_users_with_time():
+    pass

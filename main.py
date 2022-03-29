@@ -83,14 +83,17 @@ async def callback_query(call):
 
 async def add_time(user_id, time_to_send):
     if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
-        aioschedule.every().days.at(time_to_send).do().tag(user_id)  # добавление времени отправки
+        sql.add_time_send(user_id, time_to_send)
+        aioschedule.every().days.at(time_to_send).do(resend_schedule, user_id).tag(user_id)  # добавление времени отправки
         await send_schedule(datetime.today(),user_id)
     else:
         await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
 
 
-def resend_schedule(user_id):
-    pass # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
+async def resend_schedule(user_id):
+    delete_state = await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
+    await bot.send_message(user_id, 'збс брат, красава')
+    await send_schedule(datetime.today(), user_id)
 
 async def time_send(user_id, text):
     if text == 'Да':
@@ -147,7 +150,8 @@ async def send_schedule(date, user_id):
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_groups[0], date)
-    await bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
+    responce = await bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
+    sql.add_schedule_id(user_id, responce.message_id)
     sql.set_state(user_id, 'schedule')
 
 
