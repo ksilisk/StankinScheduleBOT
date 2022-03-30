@@ -9,7 +9,7 @@ import asyncio
 import json
 
 
-API_TOKEN = "5202157596:AAFXSkQfNEWvFSl1WSxXRXl7oGaUUjzJ5M8"
+API_TOKEN = ""
 bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
@@ -68,7 +68,10 @@ async def message_hand(message):
         await time_send(message.chat.id, message.text)
     elif state == 'add_time':
         await add_time(message.chat.id, message.text)
-
+    elif state == 'new_groups':
+        await new_groups(message.chat.id, message.text)
+    else:
+        await bot.send_message(message.chat.id, 'Пожалуйста, введите корректное значение!')
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -86,12 +89,36 @@ async def callback_query(call):
         await bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=markup)
     elif call.data == 'groupsEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
-        pass # дописать смену групп расписания
+        await bot.send_message(call.from_user.id,
+                               'Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\nСписок групп можно '
+                               'посмотреть <a href="https://drive.google.com/file/d'
+                               '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
+                               parse_mode='HTML',
+                               disable_web_page_preview=True)
+        sql.null_group_count(call.from_user.id)
+        sql.set_state(call.from_user.id, 'new_groups')
     elif call.data == 'timeEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
         await bot.send_message(call.from_user.id, 'Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
         sql.set_state(call.from_user.id, 'add_time')
 
+
+async def new_groups(user_id, text):
+    groups_list = text.split(' ')
+    if len(groups_list) > 3:
+        await bot.send_message(user_id, 'Необходимо отправить не больше 3-х групп!\nПопробуйте снова!')
+    else:
+        flag = False
+        for new_group in groups_list:
+            if new_group in GROUPS:
+                sql.add_group(user_id, new_group)
+            else:
+                flag = True
+        if flag:
+            await bot.send_message(user_id, 'Таких группы в базе нет!\nПроверьте правильность сообщения и попробуйте снова!')
+            sql.null_group_count(user_id)
+        else:
+            await send_schedule(datetime.today(), user_id)
 
 async def add_time(user_id, time_to_send):
     if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
@@ -106,6 +133,7 @@ async def add_time(user_id, time_to_send):
 async def resend_schedule(user_id):
     await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
     await send_schedule(datetime.today(), user_id)
+
 
 async def time_send(user_id, text):
     if text == 'Да':

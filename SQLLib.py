@@ -63,6 +63,11 @@ def add_group(user_id, group):
     con.commit()
 
 
+def null_group_count(user_id):
+    cur.execute("UPDATE users SET groups_count = 0 WHERE id = ?", (user_id, ))
+    con.commit()
+
+
 def check_user(user_id):
     if len(cur.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchall()) == 1:
         return True
