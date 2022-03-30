@@ -9,7 +9,7 @@ import asyncio
 import json
 
 
-API_TOKEN = "973541236:AAFLvoGUV1btTIYuoJ8i4NxXv2K4gGrQiBY"
+API_TOKEN = "5202157596:AAFXSkQfNEWvFSl1WSxXRXl7oGaUUjzJ5M8"
 bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
@@ -79,6 +79,18 @@ async def callback_query(call):
         else:
             await edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1],
                                 call.message.id)
+    elif call.data == 'settings':
+        markup = types.InlineKeyboardMarkup()
+        markup.row(types.InlineKeyboardButton('Изменить группы!', callback_data='groupsEdit'))
+        markup.row(types.InlineKeyboardButton('Изменить время получения расписания!', callback_data='timeEdit'))
+        await bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=markup)
+    elif call.data == 'groupsEdit':
+        await bot.delete_message(call.from_user.id, call.message.id)
+        pass # дописать смену групп расписания
+    elif call.data == 'timeEdit':
+        await bot.delete_message(call.from_user.id, call.message.id)
+        await bot.send_message(call.from_user.id, 'Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+        sql.set_state(call.from_user.id, 'add_time')
 
 
 async def add_time(user_id, time_to_send):
@@ -92,7 +104,7 @@ async def add_time(user_id, time_to_send):
 
 
 async def resend_schedule(user_id):
-    delete_state = await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
+    await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
     await send_schedule(datetime.today(), user_id)
 
 async def time_send(user_id, text):
@@ -141,13 +153,14 @@ async def add_group(user_id, text):
 
 async def send_schedule(date, user_id):
     user_groups = sql.get_groups(user_id).split(' ')
-    button_list = [[], []]
+    button_list = [[], [], []]
     button_list[0].extend(
         [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_groups[0]),
          types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_groups[0])])
     for u_group in user_groups:
         if u_group != user_groups[0]:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+    button_list[2].append(types.InlineKeyboardButton('Настройки', callback_data='settings'))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_groups[0], date)
     responce = await bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
@@ -157,7 +170,7 @@ async def send_schedule(date, user_id):
 
 async def edit_schedule(date, user_id, user_group, message_id):
     user_groups = sql.get_groups(user_id).split(' ')
-    button_list = [[], []]
+    button_list = [[], [], []]
     if date.date() == datetime.today().date():
         button_list[0].extend(
             [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_group),
@@ -171,6 +184,7 @@ async def edit_schedule(date, user_id, user_group, message_id):
     for u_group in user_groups:
         if u_group != user_group:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
+    button_list[2].append(types.InlineKeyboardButton('Настройки', callback_data='settings'))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_group, date)
     await bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
@@ -221,6 +235,7 @@ async def run_schedules():
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)
+
 
 async def main():
     await asyncio.gather(bot.infinity_polling(), run_schedules())
