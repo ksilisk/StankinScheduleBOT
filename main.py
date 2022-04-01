@@ -9,7 +9,7 @@ import asyncio
 import json
 
 
-API_TOKEN = ""
+API_TOKEN = "973541236:AAFUBMqC0-_PWWNYXe685saaVLNV2YLmRB0"
 bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
@@ -132,7 +132,7 @@ async def add_time(user_id, time_to_send):
 
 async def resend_schedule(user_id):
     await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
-    await send_schedule(datetime.today(), user_id)
+    await send_schedule(datetime.today() + timedelta(days=1), user_id)
 
 
 async def time_send(user_id, text):
@@ -182,9 +182,15 @@ async def add_group(user_id, text):
 async def send_schedule(date, user_id):
     user_groups = sql.get_groups(user_id).split(' ')
     button_list = [[], [], []]
-    button_list[0].extend(
-        [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_groups[0]),
-         types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_groups[0])])
+    if date.date() == datetime.today().date():
+        button_list[0].extend(
+            [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_groups[0]),
+             types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_groups[0])])
+    else:
+        button_list[0].extend(
+            [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_groups[0]),
+             types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today()) + '_' + user_groups[0]),
+             types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_groups[0])])
     for u_group in user_groups:
         if u_group != user_groups[0]:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
@@ -221,7 +227,7 @@ async def edit_schedule(date, user_id, user_group, message_id):
 async def get_schedule(group, date):
     weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
     schedule = group + '\n<b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) \
-               + '\n<b>-------------------------------------------</b>\n'
+               + '\n<b>---------------------------------------</b>\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
     lessons = json.loads(file)
@@ -249,10 +255,16 @@ async def get_schedule(group, date):
     for s in lessons_list:
         if s['subgroup'] == 'Common':
             s['subgroup'] = 'Вся группа'
+        if s['type'] == 'Seminar':
+            s['type'] = 'Семинар'
+        if s['type'] == 'Lecture':
+            s['type'] = 'Лекция'
+        if s['type'] == 'Laboratory':
+            s['type'] = 'Лабораторная работа'
         schedule += '<u>' + s['title'] + '</u>\n<i>' + s['lecturer'] + '</i>\n' + s['classroom'] + '\n<b>' \
                     + s['type'] + '</b>\n' + s['subgroup'] + '\n' \
                     + s['time']['start'] + ' - ' + s['time']['end'] + '\n'
-        schedule += '<b>--------------------------------------------</b>\n'
+        schedule += '<b>----------------------------------------</b>\n'
     return schedule
 
 
