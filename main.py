@@ -89,16 +89,17 @@ async def callback_query(call):
         await bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=markup)
     elif call.data == 'groupsEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
+        sql.add_schedule_id(call.from_user.id, 0)
         await bot.send_message(call.from_user.id,
                                '📥 Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\n\n🎯 Список групп можно '
                                'посмотреть <a href="https://drive.google.com/file/d'
                                '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
                                parse_mode='HTML',
                                disable_web_page_preview=True)
-        sql.null_group_count(call.from_user.id)
         sql.set_state(call.from_user.id, 'new_groups')
     elif call.data == 'timeEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
+        sql.add_schedule_id(call.from_user.id, 0)
         await bot.send_message(call.from_user.id, '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
         sql.set_state(call.from_user.id, 'add_time')
 
@@ -116,8 +117,10 @@ async def new_groups(user_id, text):
                 flag = True
         if flag:
             await bot.send_message(user_id, '❗️Таких группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
-            sql.null_group_count(user_id)
         else:
+            sql.null_group_count(user_id)
+            for new_group in groups_list:
+                sql.add_group(user_id, new_group)
             await send_schedule(datetime.today(), user_id)
 
 async def add_time(user_id, time_to_send):
@@ -131,7 +134,8 @@ async def add_time(user_id, time_to_send):
 
 
 async def resend_schedule(user_id):
-    await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
+    if str(sql.get_schedule_id(user_id)) != '0':
+        await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
     await send_schedule(datetime.today() + timedelta(days=1), user_id)
 
 
