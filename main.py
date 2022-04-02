@@ -9,7 +9,7 @@ import asyncio
 import json
 
 
-API_TOKEN = "973541236:AAFUBMqC0-_PWWNYXe685saaVLNV2YLmRB0"
+API_TOKEN = ""
 bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
@@ -50,7 +50,7 @@ async def start(message):  # отправить сообщение со спис
     if sql.check_user(message.chat.id):
         sql.del_user(message.chat.id)
     sql.add_user(message.chat.id)
-    await bot.send_message(message.chat.id, 'Отправьте название своей группы!\n(Например - "ИДБ-21-09")\nСписок групп можно '
+    await bot.send_message(message.chat.id, '📋 Отправьте название своей группы!\n(Например - "ИДБ-21-09")\n\n🎯 Список групп можно '
                                       'посмотреть <a href="https://drive.google.com/file/d'
                                       '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
                      parse_mode='HTML',
@@ -71,7 +71,7 @@ async def message_hand(message):
     elif state == 'new_groups':
         await new_groups(message.chat.id, message.text)
     else:
-        await bot.send_message(message.chat.id, 'Пожалуйста, введите корректное значение!')
+        await bot.send_message(message.chat.id, '❗️Пожалуйста, введите корректное значение!')
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -84,13 +84,13 @@ async def callback_query(call):
                                 call.message.id)
     elif call.data == 'settings':
         markup = types.InlineKeyboardMarkup()
-        markup.row(types.InlineKeyboardButton('Изменить группы!', callback_data='groupsEdit'))
-        markup.row(types.InlineKeyboardButton('Изменить время получения расписания!', callback_data='timeEdit'))
+        markup.row(types.InlineKeyboardButton('✏️Изменить группы!', callback_data='groupsEdit'))
+        markup.row(types.InlineKeyboardButton('✏️Изменить время получения расписания!', callback_data='timeEdit'))
         await bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=markup)
     elif call.data == 'groupsEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
         await bot.send_message(call.from_user.id,
-                               'Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\nСписок групп можно '
+                               '📥 Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\n\n🎯 Список групп можно '
                                'посмотреть <a href="https://drive.google.com/file/d'
                                '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
                                parse_mode='HTML',
@@ -99,14 +99,14 @@ async def callback_query(call):
         sql.set_state(call.from_user.id, 'new_groups')
     elif call.data == 'timeEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
-        await bot.send_message(call.from_user.id, 'Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+        await bot.send_message(call.from_user.id, '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
         sql.set_state(call.from_user.id, 'add_time')
 
 
 async def new_groups(user_id, text):
     groups_list = text.split(' ')
     if len(groups_list) > 3:
-        await bot.send_message(user_id, 'Необходимо отправить не больше 3-х групп!\nПопробуйте снова!')
+        await bot.send_message(user_id, '❗️Необходимо отправить не больше 3-х групп!\n\n❗️Попробуйте снова!')
     else:
         flag = False
         for new_group in groups_list:
@@ -115,7 +115,7 @@ async def new_groups(user_id, text):
             else:
                 flag = True
         if flag:
-            await bot.send_message(user_id, 'Таких группы в базе нет!\nПроверьте правильность сообщения и попробуйте снова!')
+            await bot.send_message(user_id, '❗️Таких группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
             sql.null_group_count(user_id)
         else:
             await send_schedule(datetime.today(), user_id)
@@ -127,7 +127,7 @@ async def add_time(user_id, time_to_send):
         aioschedule.every().days.at(time_to_send).do(resend_schedule, user_id).tag(user_id)  # добавление времени отправки
         await send_schedule(datetime.today(),user_id)
     else:
-        await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
+        await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
 
 
 async def resend_schedule(user_id):
@@ -136,47 +136,47 @@ async def resend_schedule(user_id):
 
 
 async def time_send(user_id, text):
-    if text == 'Да':
-        await bot.send_message(user_id, 'Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+    if text == 'Да✅':
+        await bot.send_message(user_id, '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
         sql.set_state(user_id, 'add_time')
-    elif text == 'Нет':
+    elif text == 'Нет❌':
         await send_schedule(datetime.today(), user_id)
     else:
-        await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!',
+        await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!',
                                reply_markup=types.ReplyKeyboardMarkup(True,True).row(
-                                   types.KeyboardButton('Да'),
-                                   types.KeyboardButton('Нет')))
+                                   types.KeyboardButton('Да✅'),
+                                   types.KeyboardButton('Нет❌')))
 
 async def group_choice(user_id, text):
-    if text == 'Да':
-        await bot.send_message(user_id, 'Пришлите название группы!')
+    if text == 'Да✅':
+        await bot.send_message(user_id, '📥 Пришлите название группы!')
         sql.set_state(user_id, '/start')
-    elif text == 'Нет':
-        await bot.send_message(user_id, 'Хотите ли Вы получать расписание ежедневно в какое-то время?',
+    elif text == 'Нет❌':
+        await bot.send_message(user_id, '❓ Хотите ли Вы получать расписание ежедневно в какое-то время?',
                                reply_markup=types.ReplyKeyboardMarkup(True, True).row(
-                                   types.KeyboardButton('Да'),
-                                   types.KeyboardButton('Нет')))
+                                   types.KeyboardButton('Да✅'),
+                                   types.KeyboardButton('Нет❌')))
         sql.set_state(user_id, 'time_send')
     else:
-        await bot.send_message(user_id, 'Пожалуйста, введите корректное значение!')
+        await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
 
 
 async def add_group(user_id, text):
     if text in GROUPS:
         sql.add_group(user_id, text)
-        markup = types.ReplyKeyboardMarkup(True, True).row(types.KeyboardButton('Да'),
-                                                           types.KeyboardButton('Нет'))
+        markup = types.ReplyKeyboardMarkup(True, True).row(types.KeyboardButton('Да✅'),
+                                                           types.KeyboardButton('Нет❌'))
         if sql.get_groups_count(user_id) < 3:
-            await bot.send_message(user_id, 'Отлично!\nХотите добавить еще одну группу? (не больше 3-х)',
+            await bot.send_message(user_id, '💥 Отлично!\n\n❓ Хотите добавить еще одну группу? (не больше 3-х)',
                                    reply_markup=markup)
             sql.set_state(user_id, 'group_choice')
         else:
-            await bot.send_message(user_id, 'Хотите ли Вы получать расписание ежедневно в какое-то время?',
+            await bot.send_message(user_id, '❓ Хотите ли Вы получать расписание ежедневно в какое-то время?',
                                    reply_markup=markup)
             sql.set_state(user_id, 'time_send')
     else:
         await bot.send_message(user_id,
-                         'Такой группы в базе нет!\nПроверьте правильность сообщения и попробуйте снова!')
+                         '❗️Такой группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
 
 
 async def send_schedule(date, user_id):
@@ -194,7 +194,7 @@ async def send_schedule(date, user_id):
     for u_group in user_groups:
         if u_group != user_groups[0]:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
-    button_list[2].append(types.InlineKeyboardButton('Настройки', callback_data='settings'))
+    button_list[2].append(types.InlineKeyboardButton('⚙️️Настройки', callback_data='settings'))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_groups[0], date)
     responce = await bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
@@ -218,7 +218,7 @@ async def edit_schedule(date, user_id, user_group, message_id):
     for u_group in user_groups:
         if u_group != user_group:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
-    button_list[2].append(types.InlineKeyboardButton('Настройки', callback_data='settings'))
+    button_list[2].append(types.InlineKeyboardButton('⚙️Настройки', callback_data='settings'))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_group, date)
     await bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
@@ -226,7 +226,7 @@ async def edit_schedule(date, user_id, user_group, message_id):
 
 async def get_schedule(group, date):
     weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
-    schedule = group + '\n<b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) \
+    schedule = '📋 ' + group + '\n🗓 <b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) \
                + '\n<b>---------------------------------------</b>\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
