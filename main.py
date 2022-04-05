@@ -9,7 +9,7 @@ import asyncio
 import json
 
 
-API_TOKEN = ""
+API_TOKEN = "973541236:AAFUBMqC0-_PWWNYXe685saaVLNV2YLmRB0"
 bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
@@ -230,8 +230,7 @@ async def edit_schedule(date, user_id, user_group, message_id):
 
 async def get_schedule(group, date):
     weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
-    schedule = '📋 ' + group + '\n🗓 <b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) \
-               + '\n<b>---------------------------------------</b>\n'
+    schedule = '📋 ' + group + '\n🗓 <b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) + '\n\n'
     lessons_list = []
     file = open('schedules/' + group + '.json', 'r').read()
     lessons = json.loads(file)
@@ -257,18 +256,26 @@ async def get_schedule(group, date):
         return schedule
     lessons_list = sorted(lessons_list, key=lambda temp: temp['time']['end'])
     for s in lessons_list:
-        if s['subgroup'] == 'Common':
-            s['subgroup'] = 'Вся группа'
+        if int(s['time']['start'].split(':')[0]) <= datetime.today().hour <= int(s['time']['end'].split(':')[0]) \
+                and int(s['time']['start'].split(':')[1]) <= datetime.today().minute <= int(s['time']['end'].split(':')[1]) \
+                and date.date() == datetime.today().date():
+            schedule += '👺 идёт\n'
+        elif datetime.today().hour <= int(s['time']['start'].split(':')[0]) and date.date() >= datetime.today().date():
+            schedule += '🗿 ещё не началась\n'
+        else:
+            schedule += '😼 закончилась\n'
+        schedule += s['time']['start'] + ' - ' + s['time']['end'] + '\n<b>' + s['title'] + '.</b> ' + s['classroom']
+        if s['subgroup'] != 'Common':
+            schedule += '(<b>' + s['subgroup'] + '</b>)\n'
+        else:
+            schedule += '\n'
         if s['type'] == 'Seminar':
-            s['type'] = 'Семинар'
-        if s['type'] == 'Lecture':
-            s['type'] = 'Лекция'
-        if s['type'] == 'Laboratory':
-            s['type'] = 'Лабораторная работа'
-        schedule += '<u>' + s['title'] + '</u>\n<i>' + s['lecturer'] + '</i>\n' + s['classroom'] + '\n<b>' \
-                    + s['type'] + '</b>\n' + s['subgroup'] + '\n' \
-                    + s['time']['start'] + ' - ' + s['time']['end'] + '\n'
-        schedule += '<b>----------------------------------------</b>\n'
+            schedule += 'Семинар '
+        elif s['type'] == 'Lecture':
+            schedule += 'Лекция '
+        elif s['type'] == 'Laboratory':
+            schedule += 'Лаба '
+        schedule += '<i>' + s['lecturer'] + '</i>\n\n'
     return schedule
 
 
