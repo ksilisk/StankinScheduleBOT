@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from telebot.async_telebot import AsyncTeleBot
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from telebot import types
 import aioschedule
 import dateparser as p
 import SQLLib as sql
 import asyncio
 import json
-
 
 API_TOKEN = "973541236:AAFUBMqC0-_PWWNYXe685saaVLNV2YLmRB0"
 bot = AsyncTeleBot(API_TOKEN)
@@ -47,18 +46,21 @@ GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АД�
 
 @bot.message_handler(commands=['start'])
 async def start(message):  # отправить сообщение со списком всех груп
+    print(datetime.now().time(), message)
     if sql.check_user(message.chat.id):
         sql.del_user(message.chat.id)
     sql.add_user(message.chat.id)
-    await bot.send_message(message.chat.id, '📋 Отправьте название своей группы!\n(Например - "ИДБ-21-09")\n\n🎯 Список групп можно '
-                                      'посмотреть <a href="https://drive.google.com/file/d'
-                                      '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
-                     parse_mode='HTML',
-                     disable_web_page_preview=True)
+    await bot.send_message(message.chat.id,
+                           '📋 Отправьте название своей группы!\n(Например - "ИДБ-21-09")\n\n🎯 Список групп можно '
+                           'посмотреть <a href="https://drive.google.com/file/d'
+                           '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
+                           parse_mode='HTML',
+                           disable_web_page_preview=True)
 
 
 @bot.message_handler(content_types=['text'])
 async def message_hand(message):
+    print(datetime.now().time(), message)
     state = sql.get_state(message.chat.id)
     if state == '/start':
         await add_group(message.chat.id, message.text)
@@ -76,6 +78,7 @@ async def message_hand(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 async def callback_query(call):
+    print(datetime.now().time(), call)
     if '_' in call.data:
         if call.data.split('_')[0] == 'group':
             await edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
@@ -100,7 +103,8 @@ async def callback_query(call):
     elif call.data == 'timeEdit':
         await bot.delete_message(call.from_user.id, call.message.id)
         sql.add_schedule_id(call.from_user.id, 0)
-        await bot.send_message(call.from_user.id, '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+        await bot.send_message(call.from_user.id,
+                               '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
         sql.set_state(call.from_user.id, 'add_time')
 
 
@@ -116,40 +120,49 @@ async def new_groups(user_id, text):
             else:
                 flag = True
         if flag:
-            await bot.send_message(user_id, '❗️Таких группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
+            await bot.send_message(user_id,
+                                   '❗️Таких группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
         else:
             sql.null_group_count(user_id)
             for new_group in groups_list:
                 sql.add_group(user_id, new_group)
             await send_schedule(datetime.today(), user_id)
 
+
 async def add_time(user_id, time_to_send):
     if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
         sql.add_time_send(user_id, time_to_send)
         aioschedule.clear(user_id)
-        aioschedule.every().days.at(time_to_send).do(resend_schedule, user_id).tag(user_id)  # добавление времени отправки
-        await send_schedule(datetime.today(),user_id)
+        aioschedule.every().days.at(time_to_send).do(resend_schedule, user_id).tag(
+            user_id)  # добавление времени отправки
+        await send_schedule(datetime.today(), user_id)
     else:
         await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
 
 
 async def resend_schedule(user_id):
+    print(user_id, sql.get_schedule_id(user_id))
     if str(sql.get_schedule_id(user_id)) != '0':
-        await bot.delete_message(user_id, sql.get_schedule_id(user_id)) # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
+        print(user_id, 'try to delete')
+        await bot.delete_message(user_id, sql.get_schedule_id(
+            user_id))  # написать функцию которая удаляет предыдущее сообщение с расписание и отправляет новое
+    print(user_id, 'send new schedule')
     await send_schedule(datetime.today() + timedelta(days=1), user_id)
 
 
 async def time_send(user_id, text):
     if text == 'Да✅':
-        await bot.send_message(user_id, '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+        await bot.send_message(user_id,
+                               '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
         sql.set_state(user_id, 'add_time')
     elif text == 'Нет❌':
         await send_schedule(datetime.today(), user_id)
     else:
         await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!',
-                               reply_markup=types.ReplyKeyboardMarkup(True,True).row(
+                               reply_markup=types.ReplyKeyboardMarkup(True, True).row(
                                    types.KeyboardButton('Да✅'),
                                    types.KeyboardButton('Нет❌')))
+
 
 async def group_choice(user_id, text):
     if text == 'Да✅':
@@ -180,7 +193,7 @@ async def add_group(user_id, text):
             sql.set_state(user_id, 'time_send')
     else:
         await bot.send_message(user_id,
-                         '❗️Такой группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
+                               '❗️Такой группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
 
 
 async def send_schedule(date, user_id):
@@ -232,7 +245,7 @@ async def get_schedule(group, date):
     weekdays = ['Понедельник ', 'Вторник ', 'Среда ', 'Четверг ', 'Пятница ', 'Суббота ', 'Воскресенье ']
     schedule = '📋 ' + group + '\n🗓 <b>' + weekdays[date.weekday()] + '</b>' + str(date.date()) + '\n\n'
     lessons_list = []
-    file = open('schedules/' + group + '.json', 'r').read()
+    file = open('schedules/' + group + '.json', 'r', encoding='utf-8').read()
     lessons = json.loads(file)
     for lesson in lessons:
         for lesson_date in lesson['dates']:
@@ -256,13 +269,18 @@ async def get_schedule(group, date):
         return schedule
     lessons_list = sorted(lessons_list, key=lambda temp: temp['time']['end'])
     for s in lessons_list:
-        if int(s['time']['start'].split(':')[0]) <= datetime.today().hour <= int(s['time']['end'].split(':')[0]) \
-                and int(s['time']['start'].split(':')[1]) <= datetime.today().minute <= int(s['time']['end'].split(':')[1]) \
-                and date.date() == datetime.today().date():
-            schedule += '👺 идёт\n'
-        elif datetime.today().hour <= int(s['time']['start'].split(':')[0]) and date.date() >= datetime.today().date():
+        start_time = time(int(s['time']['start'].split(':')[0]), int(s['time']['start'].split(':')[1]), 0, 0)
+        end_time = time(int(s['time']['end'].split(':')[0]), int(s['time']['end'].split(':')[1]), 0, 0)
+        if str(date.date()) == str(datetime.today().date()):
+            if start_time <= datetime.now().time() <= end_time:
+                schedule += '👺 идёт\n'
+            elif start_time > datetime.now().time():
+                schedule += '🗿 ещё не началась\n'
+            elif end_time < datetime.now().time():
+                schedule += '😼 закончилась\n'
+        elif date > datetime.today():
             schedule += '🗿 ещё не началась\n'
-        else:
+        elif date < datetime.today():
             schedule += '😼 закончилась\n'
         schedule += s['time']['start'] + ' - ' + s['time']['end'] + '\n<b>' + s['title'] + '.</b> ' + s['classroom']
         if s['subgroup'] != 'Common':
