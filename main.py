@@ -58,6 +58,32 @@ async def start(message):  # отправить сообщение со спис
                            disable_web_page_preview=True)
 
 
+@bot.message_handler(commands=['settings'])
+async def settings(message):
+    print(datetime.today().time(), message)
+    await bot.delete_message(message.chat.id, sql.get_schedule_id(message.chat.id))
+    sql.add_schedule_id(message.chat.id, 0)
+    markup = types.InlineKeyboardMarkup()
+    markup.row(types.InlineKeyboardButton('✏️Изменить группы!', callback_data='groupsEdit'))
+    markup.row(types.InlineKeyboardButton('✏️Изменить время получения расписания!', callback_data='timeEdit'))
+    markup.row(types.InlineKeyboardButton('⬅️ Назад!', callback_data='schedule'))
+    await bot.send_message(message.chat.id, 'Выберите, что сделать:', reply_markup=markup)
+
+
+@bot.message_handler(commands=['mj'])
+async def mj(message):
+    print(datetime.today().time(), message)
+    await bot.delete_message(message.chat.id, sql.get_schedule_id(message.chat.id))
+    sql.add_schedule_id(message.chat.id, 0)
+    await bot.send_message(message.chat.id,
+                           '🛠 Обработка этой команды находится в разработке!\n\n'
+                           '🎯 Вы можете получить доступ к модульному журналу классическим способом '
+                           '<a href="https://lk.stankin.ru/#!login">по этой ссылке</a>',
+                           parse_mode="HTML",
+                           disable_web_page_preview=True,
+                           reply_markup=(types.InlineKeyboardMarkup().row(types.InlineKeyboardButton('⬅️ Назад!', callback_data='schedule'))))
+
+
 @bot.message_handler(content_types=['text'])
 async def message_hand(message):
     print(datetime.now().time(), message)
@@ -85,27 +111,22 @@ async def callback_query(call):
         else:
             await edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1],
                                 call.message.id)
-    elif call.data == 'settings':
-        markup = types.InlineKeyboardMarkup()
-        markup.row(types.InlineKeyboardButton('✏️Изменить группы!', callback_data='groupsEdit'))
-        markup.row(types.InlineKeyboardButton('✏️Изменить время получения расписания!', callback_data='timeEdit'))
-        await bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=markup)
-    elif call.data == 'groupsEdit':
-        await bot.delete_message(call.from_user.id, call.message.id)
-        sql.add_schedule_id(call.from_user.id, 0)
-        await bot.send_message(call.from_user.id,
-                               '📥 Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\n\n🎯 Список групп можно '
-                               'посмотреть <a href="https://drive.google.com/file/d'
-                               '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
-                               parse_mode='HTML',
-                               disable_web_page_preview=True)
+    elif call.data == 'groupsEdit':  # переписать логику
+        await bot.edit_message_text(chat_id=call.from_user.id, message_id=call.message.id,
+                                    text='📥 Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\n\n🎯 Список групп можно '
+                                    'посмотреть <a href="https://drive.google.com/file/d'
+                                    '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
+                                    parse_mode='HTML',
+                                    disable_web_page_preview=True, reply_markup=None)
         sql.set_state(call.from_user.id, 'new_groups')
-    elif call.data == 'timeEdit':
-        await bot.delete_message(call.from_user.id, call.message.id)
-        sql.add_schedule_id(call.from_user.id, 0)
-        await bot.send_message(call.from_user.id,
-                               '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
+    elif call.data == 'timeEdit':  # переписать логику
+        await bot.edit_message_text(chat_id=call.from_user.id, message_id=call.message.id,
+                                    text='⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)',
+                                    reply_markup=None)
         sql.set_state(call.from_user.id, 'add_time')
+    elif call.data == 'schedule':
+        await bot.delete_message(call.from_user.id, call.message.id)
+        await send_schedule(datetime.today(), call.from_user.id)
 
 
 async def new_groups(user_id, text):
@@ -211,7 +232,6 @@ async def send_schedule(date, user_id):
     for u_group in user_groups:
         if u_group != user_groups[0]:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
-    button_list[2].append(types.InlineKeyboardButton('⚙️️Настройки', callback_data='settings'))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_groups[0], date)
     responce = await bot.send_message(user_id, schedule, reply_markup=markup, parse_mode='HTML')
@@ -235,7 +255,6 @@ async def edit_schedule(date, user_id, user_group, message_id):
     for u_group in user_groups:
         if u_group != user_group:
             button_list[1].append(types.InlineKeyboardButton(u_group, callback_data='group_' + u_group))
-    button_list[2].append(types.InlineKeyboardButton('⚙️Настройки', callback_data='settings'))
     markup = types.InlineKeyboardMarkup(button_list, row_width=3)
     schedule = await get_schedule(user_group, date)
     await bot.edit_message_text(schedule, user_id, message_id, reply_markup=markup, parse_mode='HTML')
