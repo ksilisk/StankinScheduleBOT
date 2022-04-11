@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from telebot.async_telebot import AsyncTeleBot
 from datetime import datetime, timedelta, time
 from telebot import types
@@ -42,6 +41,8 @@ GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АД�
           'ЭДБ-21-03', 'ЭДБ-21-05', 'ЭДБ-21-06', 'ЭДБ-21-09', 'ЭДБ-21-10', 'ЭДМ-20-02(МВБ)', 'ЭДМ-20-02(УЧР)',
           'ЭДМ-20-02(ФМ)', 'ЭДМ-20-05', 'ЭДМ-21-02(ГМУ)', 'ЭДМ-21-02(МВБ)', 'ЭДМ-21-02(УП)', 'ЭДМ-21-02(УЧР)',
           'ЭДМ-21-02(ФМ)', 'ЭДМ-21-04', 'ЭДМ-21-05', 'ЭДМ-21-08', 'ЭДМ-21-09']
+
+AUTOSEND = {}
 
 
 @bot.message_handler(commands=['start'])
@@ -106,12 +107,12 @@ async def message_hand(message):
 async def callback_query(call):
     print(datetime.now().time(), call)
     if '_' in call.data:
-        if call.data.split('_')[0] == 'group':
+        if call.data.split('_')[0] in ['group', 'today']:
             await edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
         else:
             await edit_schedule(p.parse(call.data.split('_')[0]), call.from_user.id, call.data.split('_')[1],
                                 call.message.id)
-    elif call.data == 'groupsEdit':  # переписать логику
+    elif call.data == 'groupsEdit':
         await bot.edit_message_text(chat_id=call.from_user.id, message_id=call.message.id,
                                     text='📥 Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\n\n🎯 Список групп можно '
                                     'посмотреть <a href="https://drive.google.com/file/d'
@@ -119,7 +120,7 @@ async def callback_query(call):
                                     parse_mode='HTML',
                                     disable_web_page_preview=True, reply_markup=None)
         sql.set_state(call.from_user.id, 'new_groups')
-    elif call.data == 'timeEdit':  # переписать логику
+    elif call.data == 'timeEdit':
         await bot.edit_message_text(chat_id=call.from_user.id, message_id=call.message.id,
                                     text='⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)',
                                     reply_markup=None)
@@ -153,9 +154,7 @@ async def new_groups(user_id, text):
 async def add_time(user_id, time_to_send):
     if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
         sql.add_time_send(user_id, time_to_send)
-        aioschedule.clear(user_id)
-        aioschedule.every().days.at(time_to_send).do(resend_schedule, user_id).tag(
-            user_id)  # добавление времени отправки
+        AUTOSEND[user_id] = time_to_send
         await send_schedule(datetime.today(), user_id)
     else:
         await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
@@ -227,7 +226,7 @@ async def send_schedule(date, user_id):
     else:
         button_list[0].extend(
             [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_groups[0]),
-             types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today()) + '_' + user_groups[0]),
+             types.InlineKeyboardButton('Сегодня', callback_data='today_' + user_groups[0]),
              types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_groups[0])])
     for u_group in user_groups:
         if u_group != user_groups[0]:
@@ -249,7 +248,7 @@ async def edit_schedule(date, user_id, user_group, message_id):
     else:
         button_list[0].extend(
             [types.InlineKeyboardButton('<-', callback_data=str(date - timedelta(days=1)) + '_' + user_group),
-             types.InlineKeyboardButton('Сегодня', callback_data=str(datetime.today()) + '_' + user_group),
+             types.InlineKeyboardButton('Сегодня', callback_data='today_' + user_group),
              types.InlineKeyboardButton('->', callback_data=str(date + timedelta(days=1)) + '_' + user_group)])
 
     for u_group in user_groups:
@@ -319,10 +318,16 @@ async def get_schedule(group, date):
 async def run_schedules():
     users = sql.get_users_with_time()
     for i in range(len(users)):
-        aioschedule.every().days.at(users[i][1]).do(resend_schedule, users[i][0]).tag(users[i][0])
+        AUTOSEND[users[i][0]] = users[i][1]
+    print(AUTOSEND)
     while True:
-        await aioschedule.run_pending()
-        await asyncio.sleep(1)
+        time_now = datetime.today().time()
+        for key, value in AUTOSEND.items():
+            time_send = p.parse(value).time()
+            if time_now.hour == time_send.hour and time_now.minute == time_send.minute:
+                await resend_schedule(key)
+        print(time_now)
+        await asyncio.sleep(50)
 
 
 async def main():
