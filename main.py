@@ -7,7 +7,7 @@ import SQLLib as sql
 import asyncio
 import json
 
-API_TOKEN = "973541236:AAFUBMqC0-_PWWNYXe685saaVLNV2YLmRB0"
+API_TOKEN = "973541236:AAFFGayrpTmf5XUa4UjEO-QMAk4bV4nkwk0"
 bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
@@ -42,8 +42,6 @@ GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АД�
           'ЭДМ-20-02(ФМ)', 'ЭДМ-20-05', 'ЭДМ-21-02(ГМУ)', 'ЭДМ-21-02(МВБ)', 'ЭДМ-21-02(УП)', 'ЭДМ-21-02(УЧР)',
           'ЭДМ-21-02(ФМ)', 'ЭДМ-21-04', 'ЭДМ-21-05', 'ЭДМ-21-08', 'ЭДМ-21-09']
 
-AUTOSEND = {}
-
 
 @bot.message_handler(commands=['start'])
 async def start(message):  # отправить сообщение со списком всех груп
@@ -66,7 +64,6 @@ async def settings(message):
     sql.add_schedule_id(message.chat.id, 0)
     markup = types.InlineKeyboardMarkup()
     markup.row(types.InlineKeyboardButton('✏️Изменить группы!', callback_data='groupsEdit'))
-    markup.row(types.InlineKeyboardButton('✏️Изменить время получения расписания!', callback_data='timeEdit'))
     markup.row(types.InlineKeyboardButton('⬅️ Назад!', callback_data='schedule'))
     await bot.send_message(message.chat.id, 'Выберите, что сделать:', reply_markup=markup)
 
@@ -82,7 +79,8 @@ async def mj(message):
                            '<a href="https://lk.stankin.ru/#!login">по этой ссылке</a>',
                            parse_mode="HTML",
                            disable_web_page_preview=True,
-                           reply_markup=(types.InlineKeyboardMarkup().row(types.InlineKeyboardButton('⬅️ Назад!', callback_data='schedule'))))
+                           reply_markup=(types.InlineKeyboardMarkup().row(
+                               types.InlineKeyboardButton('⬅️ Назад!', callback_data='schedule'))))
 
 
 @bot.message_handler(content_types=['text'])
@@ -93,10 +91,6 @@ async def message_hand(message):
         await add_group(message.chat.id, message.text)
     elif state == 'group_choice':
         await group_choice(message.chat.id, message.text)
-    elif state == 'time_send':
-        await time_send(message.chat.id, message.text)
-    elif state == 'add_time':
-        await add_time(message.chat.id, message.text)
     elif state == 'new_groups':
         await new_groups(message.chat.id, message.text)
     else:
@@ -115,16 +109,11 @@ async def callback_query(call):
     elif call.data == 'groupsEdit':
         await bot.edit_message_text(chat_id=call.from_user.id, message_id=call.message.id,
                                     text='📥 Отправьте названия групп через пробел! (не больше 3-х)\n(Например - "ИДБ-21-09 ИДБ-21-10 ИДБ-21-11")\n\n🎯 Список групп можно '
-                                    'посмотреть <a href="https://drive.google.com/file/d'
-                                    '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
+                                         'посмотреть <a href="https://drive.google.com/file/d'
+                                         '/1jRj7Ru8fF3TioJc5JZ46512yr4YWR6ul/view?usp=sharing">тут</a>',
                                     parse_mode='HTML',
                                     disable_web_page_preview=True, reply_markup=None)
         sql.set_state(call.from_user.id, 'new_groups')
-    elif call.data == 'timeEdit':
-        await bot.edit_message_text(chat_id=call.from_user.id, message_id=call.message.id,
-                                    text='⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)',
-                                    reply_markup=None)
-        sql.set_state(call.from_user.id, 'add_time')
     elif call.data == 'schedule':
         await bot.delete_message(call.from_user.id, call.message.id)
         await send_schedule(datetime.today(), call.from_user.id)
@@ -151,15 +140,6 @@ async def new_groups(user_id, text):
             await send_schedule(datetime.today(), user_id)
 
 
-async def add_time(user_id, time_to_send):
-    if ((0 <= int(time_to_send.split(':')[0]) <= 23) and (0 <= int(time_to_send.split(':')[1]) <= 59)):
-        sql.add_time_send(user_id, time_to_send)
-        AUTOSEND[user_id] = time_to_send
-        await send_schedule(datetime.today(), user_id)
-    else:
-        await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
-
-
 async def resend_schedule(user_id):
     print(user_id, sql.get_schedule_id(user_id))
     if str(sql.get_schedule_id(user_id)) != '0':
@@ -170,30 +150,12 @@ async def resend_schedule(user_id):
     await send_schedule(datetime.today() + timedelta(days=1), user_id)
 
 
-async def time_send(user_id, text):
-    if text == 'Да✅':
-        await bot.send_message(user_id,
-                               '⏰ Отправьте время, когда бот должен присылать Вам расписание!\n(Например, 12:30)')
-        sql.set_state(user_id, 'add_time')
-    elif text == 'Нет❌':
-        await send_schedule(datetime.today(), user_id)
-    else:
-        await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!',
-                               reply_markup=types.ReplyKeyboardMarkup(True, True).row(
-                                   types.KeyboardButton('Да✅'),
-                                   types.KeyboardButton('Нет❌')))
-
-
 async def group_choice(user_id, text):
     if text == 'Да✅':
         await bot.send_message(user_id, '📥 Пришлите название группы!')
         sql.set_state(user_id, '/start')
     elif text == 'Нет❌':
-        await bot.send_message(user_id, '❓ Хотите ли Вы получать расписание ежедневно в какое-то время?',
-                               reply_markup=types.ReplyKeyboardMarkup(True, True).row(
-                                   types.KeyboardButton('Да✅'),
-                                   types.KeyboardButton('Нет❌')))
-        sql.set_state(user_id, 'time_send')
+        await send_schedule(datetime.today(), user_id)
     else:
         await bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
 
@@ -208,9 +170,7 @@ async def add_group(user_id, text):
                                    reply_markup=markup)
             sql.set_state(user_id, 'group_choice')
         else:
-            await bot.send_message(user_id, '❓ Хотите ли Вы получать расписание ежедневно в какое-то время?',
-                                   reply_markup=markup)
-            sql.set_state(user_id, 'time_send')
+            await send_schedule(datetime.today(), user_id)
     else:
         await bot.send_message(user_id,
                                '❗️Такой группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
@@ -315,23 +275,8 @@ async def get_schedule(group, date):
     return schedule
 
 
-async def run_schedules():
-    users = sql.get_users_with_time()
-    for i in range(len(users)):
-        AUTOSEND[users[i][0]] = users[i][1]
-    print(AUTOSEND)
-    while True:
-        time_now = datetime.today().time()
-        for key, value in AUTOSEND.items():
-            time_send = p.parse(value).time()
-            if time_now.hour == time_send.hour and time_now.minute == time_send.minute:
-                await resend_schedule(key)
-        print(time_now)
-        await asyncio.sleep(50)
-
-
 async def main():
-    await asyncio.gather(bot.infinity_polling(), run_schedules())
+    await asyncio.gather(bot.infinity_polling())
 
 
 if __name__ == '__main__':

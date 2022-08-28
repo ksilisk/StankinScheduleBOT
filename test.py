@@ -5,7 +5,7 @@ import flask
 
 import telebot
 
-API_TOKEN = '<api_token>'
+API_TOKEN = '973541236:AAFFGayrpTmf5XUa4UjEO-QMAk4bV4nkwk0'
 
 WEBHOOK_HOST = '5.45.112.46'
 WEBHOOK_PORT = 8443  # 443, 80, 88 or 8443 (port need to be 'open')
@@ -68,7 +68,7 @@ def echo_message(message):
 # Remove webhook, it fails sometimes the set if there is a previous webhook
 bot.remove_webhook()
 
-time.sleep(0.1)
+time.sleep(1)
 
 # Set webhook
 bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH,
