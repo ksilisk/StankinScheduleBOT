@@ -1,14 +1,14 @@
 from telebot.async_telebot import AsyncTeleBot
 from datetime import datetime, timedelta, time
 from telebot import types
-import aioschedule
+import telebot
 import dateparser as p
 import SQLLib as sql
+import logging
+import flask
+import time
 import asyncio
 import json
-
-API_TOKEN = "973541236:AAFFGayrpTmf5XUa4UjEO-QMAk4bV4nkwk0"
-bot = AsyncTeleBot(API_TOKEN)
 
 GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АДБ-18-07', 'АДБ-18-08', 'АДБ-18-09', 'АДБ-18-10',
           'АДБ-18-11', 'АДБ-19-01', 'АДБ-19-02', 'АДБ-19-03', 'АДБ-19-06', 'АДБ-19-07', 'АДБ-19-08', 'АДБ-19-09',
@@ -42,7 +42,37 @@ GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АД�
           'ЭДМ-20-02(ФМ)', 'ЭДМ-20-05', 'ЭДМ-21-02(ГМУ)', 'ЭДМ-21-02(МВБ)', 'ЭДМ-21-02(УП)', 'ЭДМ-21-02(УЧР)',
           'ЭДМ-21-02(ФМ)', 'ЭДМ-21-04', 'ЭДМ-21-05', 'ЭДМ-21-08', 'ЭДМ-21-09']
 
+API_TOKEN = "973541236:AAFFGayrpTmf5XUa4UjEO-QMAk4bV4nkwk0"
+WEBHOOK_HOST = '5.45.112.46'
+WEBHOOK_PORT = 8443  # 443, 80, 88 or 8443 (port need to be 'open')
+WEBHOOK_LISTEN = '0.0.0.0'  # In some VPS you may need to put here the IP addr
 
+WEBHOOK_SSL_CERT = './webhook_cert.pem'  # Path to the ssl certificate
+WEBHOOK_SSL_PRIV = './webhook_pkey.pem'  # Path to the ssl private key
+
+WEBHOOK_URL_BASE = "https://%s:%s" % (WEBHOOK_HOST, WEBHOOK_PORT)
+WEBHOOK_URL_PATH = "/%s/" % (API_TOKEN)
+
+logger = telebot.logger
+telebot.logger.setLevel(logging.INFO)
+
+bot = telebot.TeleBot(API_TOKEN)
+
+app = flask.Flask(__name__)
+
+@app.route('/', methods=['GET', 'HEAD'])
+def index():
+    return ''
+
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+def webhook():
+    if flask.request.headers.get('content-type') == 'application/json':
+        json_string = flask.request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    else:
+        flask.abort(403)
 @bot.message_handler(commands=['start'])
 async def start(message):  # отправить сообщение со списком всех груп
     print(datetime.now().time(), message)
@@ -276,7 +306,16 @@ async def get_schedule(group, date):
 
 
 async def main():
-    await asyncio.gather(bot.infinity_polling())
+    bot.remove_webhook()
+    time.sleep(1)
+    bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH,
+                    certificate=open(WEBHOOK_SSL_CERT, 'r'))
+
+    # Start flask server
+    app.run(host=WEBHOOK_LISTEN,
+            port=WEBHOOK_PORT,
+            ssl_context=(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV),
+            debug=True)
 
 
 if __name__ == '__main__':
