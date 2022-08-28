@@ -304,8 +304,7 @@ async def get_schedule(group, date):
         schedule += '<i>' + s['lecturer'] + '</i>\n\n'
     return schedule
 
-
-async def main():
+if __name__ == '__main__':
     bot.remove_webhook()
     time.sleep(1)
     bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH,
@@ -316,7 +315,3 @@ async def main():
             port=WEBHOOK_PORT,
             ssl_context=(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV),
             debug=True)
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
