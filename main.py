@@ -41,9 +41,9 @@ GROUPS = ['АДБ-18-01', 'АДБ-18-02', 'АДБ-18-03', 'АДБ-18-06', 'АД�
           'ЭДМ-20-02(ФМ)', 'ЭДМ-20-05', 'ЭДМ-21-02(ГМУ)', 'ЭДМ-21-02(МВБ)', 'ЭДМ-21-02(УП)', 'ЭДМ-21-02(УЧР)',
           'ЭДМ-21-02(ФМ)', 'ЭДМ-21-04', 'ЭДМ-21-05', 'ЭДМ-21-08', 'ЭДМ-21-09']
 
-API_TOKEN = '973541236:AAFFGayrpTmf5XUa4UjEO-QMAk4bV4nkwk0'
+API_TOKEN = ''
 
-WEBHOOK_HOST = '5.45.112.46'
+WEBHOOK_HOST = ''
 WEBHOOK_PORT = 8443  # 443, 80, 88 or 8443 (port need to be 'open')
 WEBHOOK_LISTEN = '0.0.0.0'  # In some VPS you may need to put here the IP addr
 
@@ -80,6 +80,8 @@ def webhook():
 
 @bot.message_handler(commands=['start'])
 def start(message):  # отправить сообщение со списком всех груп
+    print(datetime.today().time(), "/start", message.chat.id,
+          message.from_user.username, message.from_user.first_name, message.text)
     if sql.check_user(message.chat.id):
         sql.del_user(message.chat.id)
     sql.add_user(message.chat.id)
@@ -93,7 +95,8 @@ def start(message):  # отправить сообщение со списком
 
 @bot.message_handler(commands=['settings'])
 def settings(message):
-    print(datetime.today().time(), message)
+    print(datetime.today().time(), "/settings", message.chat.id,
+          message.from_user.username, message.from_user.first_name, message.text)
     bot.delete_message(message.chat.id, sql.get_schedule_id(message.chat.id))
     sql.add_schedule_id(message.chat.id, 0)
     markup = types.InlineKeyboardMarkup()
@@ -104,7 +107,8 @@ def settings(message):
 
 @bot.message_handler(commands=['mj'])
 def mj(message):
-    print(datetime.today().time(), message)
+    print(datetime.today().time(), "/mj", message.chat.id,
+          message.from_user.username, message.from_user.first_name, message.text)
     bot.delete_message(message.chat.id, sql.get_schedule_id(message.chat.id))
     sql.add_schedule_id(message.chat.id, 0)
     bot.send_message(message.chat.id,
