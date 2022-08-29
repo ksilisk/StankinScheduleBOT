@@ -157,11 +157,7 @@ def group_choice(user_id, text):
         bot.send_message(user_id, '📥 Пришлите название группы!')
         sql.set_state(user_id, '/start')
     elif text == 'Нет❌':
-        bot.send_message(user_id, '❓ Хотите ли Вы получать расписание ежедневно в какое-то время?',
-                         reply_markup=types.ReplyKeyboardMarkup(True, True).row(
-                             types.KeyboardButton('Да✅'),
-                             types.KeyboardButton('Нет❌')))
-        sql.set_state(user_id, 'time_send')
+        send_schedule(datetime.today(), user_id)
     else:
         bot.send_message(user_id, '❗️Пожалуйста, введите корректное значение!')
 
@@ -176,9 +172,7 @@ def add_group(user_id, text):
                              reply_markup=markup)
             sql.set_state(user_id, 'group_choice')
         else:
-            bot.send_message(user_id, '❓ Хотите ли Вы получать расписание ежедневно в какое-то время?',
-                             reply_markup=markup)
-            sql.set_state(user_id, 'time_send')
+            send_schedule(datetime.today(), user_id)
     else:
         bot.send_message(user_id,
                          '❗️Такой группы в базе нет!\n\n❗️Проверьте правильность сообщения и попробуйте снова!')
