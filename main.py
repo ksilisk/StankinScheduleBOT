@@ -136,7 +136,8 @@ def message_hand(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
-    print(datetime.now().time(), call)
+    print(datetime.now().time(), "call", call.from_user.username, call.from_user.first_name,
+          call.data)
     if '_' in call.data:
         if call.data.split('_')[0] in ['group', 'today']:
             edit_schedule(datetime.today(), call.from_user.id, call.data.split('_')[1], call.message.id)
